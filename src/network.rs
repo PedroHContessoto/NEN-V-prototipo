@@ -37,6 +37,15 @@ pub struct Network {
 
     /// Taxa de decaimento do alert_level (retorna gradualmente ao baseline)
     alert_decay_rate: f64,
+
+    /// Novidade média atual da rede (calculada no último update)
+    current_avg_novelty: f64,
+
+    /// Threshold de novidade para ativar alert_level automaticamente
+    novelty_alert_threshold: f64,
+
+    /// Sensibilidade do boost de alert baseado em novidade
+    alert_sensitivity: f64,
 }
 
 impl Network {
@@ -90,6 +99,9 @@ impl Network {
             grid_height,
             alert_level: 0.0, // Estado normal inicial
             alert_decay_rate: 0.05, // Decai 5% por passo
+            current_avg_novelty: 0.0,
+            novelty_alert_threshold: 0.5, // Ativa alert quando novelty > 0.5
+            alert_sensitivity: 0.3, // Boost = novelty * 0.3
         }
     }
 
@@ -222,9 +234,12 @@ impl Network {
         }
 
         // Fase 4: Aprendizado e atualização de estado
+        let mut total_novelty = 0.0;
+
         for (neuron, inputs) in self.neurons.iter_mut().zip(gathered_inputs.iter()) {
             // Calcula novidade ANTES de atualizar memória
             let novelty = neuron.compute_novelty(inputs);
+            total_novelty += novelty;
 
             // Atualiza priority baseado na novidade (sensitivity_factor = 1.0 por padrão)
             neuron.update_priority(novelty, 1.0);
@@ -239,6 +254,16 @@ impl Network {
 
             // Atualiza memória DEPOIS de calcular novelty
             neuron.update_memory(inputs);
+        }
+
+        // Fase 5: Integração Novelty-Alert (v0.3.0)
+        // Calcula novidade média da rede
+        self.current_avg_novelty = total_novelty / self.neurons.len() as f64;
+
+        // Se novidade excede threshold, boost alert_level automaticamente
+        if self.current_avg_novelty > self.novelty_alert_threshold {
+            let alert_boost = self.current_avg_novelty * self.alert_sensitivity;
+            self.boost_alert_level(alert_boost);
         }
     }
 
@@ -333,21 +358,25 @@ impl Network {
         }
     }
 
-    /// Calcula a novidade média da rede
+    /// Retorna a novidade média da rede (calculada no último update)
     ///
-    /// Útil para detectar eventos inesperados e ajustar alert_level
+    /// A novidade é a diferença média entre inputs atuais e memória contextual
+    /// de todos os neurônios. Valores altos indicam eventos inesperados.
+    ///
+    /// # Retorna
+    /// Novidade média [0.0, ∞), calculada automaticamente durante update()
     pub fn average_novelty(&self) -> f64 {
-        let total_novelty: f64 = self
-            .neurons
-            .iter()
-            .map(|n| {
-                // Calcula novelty comparando memory_trace (última entrada conhecida)
-                let memory_norm: f64 = n.memory_trace.iter().map(|&x| x.abs()).sum();
-                memory_norm / n.memory_trace.len() as f64
-            })
-            .sum();
+        self.current_avg_novelty
+    }
 
-        total_novelty / self.neurons.len() as f64
+    /// Configura os parâmetros da integração novelty-alert
+    ///
+    /// # Argumentos
+    /// * `threshold` - Novidade mínima para ativar alert_level [0.0, ∞)
+    /// * `sensitivity` - Multiplicador para calcular boost (boost = novelty * sensitivity)
+    pub fn set_novelty_alert_params(&mut self, threshold: f64, sensitivity: f64) {
+        self.novelty_alert_threshold = threshold.max(0.0);
+        self.alert_sensitivity = sensitivity.clamp(0.0, 1.0);
     }
 }
 

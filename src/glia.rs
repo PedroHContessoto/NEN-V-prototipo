@@ -186,4 +186,81 @@ mod tests {
         glia.update_state(true);
         assert!(glia.energy >= 0.0);
     }
+
+    // === Testes v0.2.0: Alert Level ===
+
+    #[test]
+    fn test_alert_level_accelerates_recovery() {
+        let mut glia_normal = Glia::new();
+        let mut glia_alert = Glia::new();
+
+        // Ambos começam com 50% de energia
+        glia_normal.energy = 50.0;
+        glia_alert.energy = 50.0;
+
+        // Glia alerta tem alert_level máximo
+        glia_alert.alert_level = 1.0;
+
+        // Ambos em repouso por 1 passo
+        glia_normal.update_state(false);
+        glia_alert.update_state(false);
+
+        // Glia com alerta deve ter recuperado mais energia
+        assert!(glia_alert.energy > glia_normal.energy);
+
+        // base_recovery = 2.0 * (1.0 - 0.5) = 1.0
+        // alert_boost = 1.0 * 1.0 = 1.0
+        // diferença = 1.0
+        let expected_diff = 1.0; // alert_boost
+        assert_relative_eq!(
+            glia_alert.energy - glia_normal.energy,
+            expected_diff,
+            epsilon = 0.05
+        );
+    }
+
+    #[test]
+    fn test_alert_level_zero_no_effect() {
+        let mut glia_zero = Glia::new();
+        let mut glia_normal = Glia::new();
+
+        glia_zero.energy = 50.0;
+        glia_normal.energy = 50.0;
+
+        glia_zero.alert_level = 0.0;
+        glia_normal.alert_level = 0.0;
+
+        glia_zero.update_state(false);
+        glia_normal.update_state(false);
+
+        // Devem recuperar exatamente a mesma energia
+        assert_relative_eq!(glia_zero.energy, glia_normal.energy, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_priority_modulation() {
+        let mut glia = Glia::new();
+        glia.priority = 2.0;
+        glia.energy = 100.0; // Energia máxima
+
+        let potential = 10.0;
+        let modulated = glia.modulate(potential);
+
+        // Com priority=2.0, potencial deve dobrar
+        assert_relative_eq!(modulated, 20.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_priority_and_energy_interaction() {
+        let mut glia = Glia::new();
+        glia.priority = 2.0;
+        glia.energy = 50.0; // 50% de energia
+
+        let potential = 10.0;
+        let modulated = glia.modulate(potential);
+
+        // energy_factor = 0.5, priority = 2.0
+        // modulated = 10.0 * 0.5 * 2.0 = 10.0
+        assert_relative_eq!(modulated, 10.0, epsilon = 1e-10);
+    }
 }

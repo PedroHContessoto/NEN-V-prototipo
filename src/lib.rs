@@ -11,9 +11,11 @@ pub mod experiments;
 pub mod glia;
 pub mod nenv;
 pub mod network;
+pub mod visualization;
 
 // Re-exporta tipos principais para facilitar uso
 pub use dendritoma::Dendritoma;
 pub use glia::Glia;
 pub use nenv::{NeuronType, NENV};
 pub use network::{ConnectivityType, Network};
+pub use visualization::SimulationSnapshot;

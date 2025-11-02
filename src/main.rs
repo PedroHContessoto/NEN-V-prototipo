@@ -4,10 +4,10 @@ use std::io::Write;
 
 fn main() -> std::io::Result<()> {
     println!("=== NEN-V Protótipo v0.2.0 ===");
-    println!("Experimento 3: Resposta a Evento Urgente\n");
+    println!("Experimento 2: Detecção de Novidade\n");
 
-    // Executa experimento de alert_level
-    experiments::urgent_event_experiment()?;
+    // Executa experimento de detecção de novidade
+    experiments::novelty_detection_experiment()?;
 
     Ok(())
 }

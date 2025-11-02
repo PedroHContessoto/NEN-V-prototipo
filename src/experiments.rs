@@ -3,6 +3,7 @@
 /// Cada experimento demonstra um aspecto específico da arquitetura
 
 use crate::network::{ConnectivityType, Network};
+use crate::visualization::{generate_all_plots, SimulationSnapshot};
 use std::fs::File;
 use std::io::Write as IoWrite;
 
@@ -54,6 +55,10 @@ pub fn novelty_detection_experiment() -> std::io::Result<()> {
          total_firing,alert_level"
     )?;
 
+    // Vetores para visualização (separados para neurônio A e B)
+    let mut snapshots_a = Vec::new();
+    let mut snapshots_b = Vec::new();
+
     // Loop de simulação
     for t in 0..MAX_TIME {
         let external_inputs = generate_novelty_stimulus(NUM_NEURONS, t, NEURON_A, NEURON_B);
@@ -63,6 +68,27 @@ pub fn novelty_detection_experiment() -> std::io::Result<()> {
         // Coleta dados
         let neuron_a = &network.neurons[NEURON_A];
         let neuron_b = &network.neurons[NEURON_B];
+
+        // Salva snapshots
+        snapshots_a.push(SimulationSnapshot {
+            time: t,
+            target_firing: neuron_a.is_firing,
+            target_energy: neuron_a.glia.energy,
+            target_priority: neuron_a.glia.priority,
+            total_firing: network.num_firing(),
+            avg_energy: network.average_energy(),
+            alert_level: network.alert_level,
+        });
+
+        snapshots_b.push(SimulationSnapshot {
+            time: t,
+            target_firing: neuron_b.is_firing,
+            target_energy: neuron_b.glia.energy,
+            target_priority: neuron_b.glia.priority,
+            total_firing: network.num_firing(),
+            avg_energy: network.average_energy(),
+            alert_level: network.alert_level,
+        });
 
         writeln!(
             log_file,
@@ -93,6 +119,28 @@ pub fn novelty_detection_experiment() -> std::io::Result<()> {
     }
 
     println!("\n✅ Simulação concluída! Dados salvos em 'novelty_detection_log.csv'");
+
+    // Gera visualizações para neurônio A (familiar)
+    println!("📊 Gerando visualizações...");
+    if let Err(e) = generate_all_plots(&snapshots_a, "exp2_neuron_a_familiar") {
+        eprintln!("⚠️  Erro ao gerar gráficos do neurônio A: {}", e);
+    }
+
+    // Gera visualizações para neurônio B (novo)
+    if let Err(e) = generate_all_plots(&snapshots_b, "exp2_neuron_b_novel") {
+        eprintln!("⚠️  Erro ao gerar gráficos do neurônio B: {}", e);
+    } else {
+        println!("✅ Gráficos gerados:");
+        println!("   Neurônio A (familiar):");
+        println!("     - exp2_neuron_a_familiar_priority_alert.png");
+        println!("     - exp2_neuron_a_familiar_energy.png");
+        println!("     - exp2_neuron_a_familiar_activity.png");
+        println!("   Neurônio B (novo):");
+        println!("     - exp2_neuron_b_novel_priority_alert.png");
+        println!("     - exp2_neuron_b_novel_energy.png");
+        println!("     - exp2_neuron_b_novel_activity.png");
+    }
+
     Ok(())
 }
 
@@ -162,6 +210,9 @@ pub fn urgent_event_experiment() -> std::io::Result<()> {
         "time,target_firing,target_energy,total_firing,avg_energy,alert_level"
     )?;
 
+    // Vetor para armazenar snapshots para visualização
+    let mut snapshots = Vec::new();
+
     for t in 0..MAX_TIME {
         // Evento urgente em t=50
         if t == 50 {
@@ -179,6 +230,18 @@ pub fn urgent_event_experiment() -> std::io::Result<()> {
         network.update(&external_inputs);
 
         let target = &network.neurons[TARGET];
+
+        // Salva snapshot para visualização
+        snapshots.push(SimulationSnapshot {
+            time: t,
+            target_firing: target.is_firing,
+            target_energy: target.glia.energy,
+            target_priority: target.glia.priority,
+            total_firing: network.num_firing(),
+            avg_energy: network.average_energy(),
+            alert_level: network.alert_level,
+        });
+
         writeln!(
             log_file,
             "{},{},{:.2},{},{:.2},{:.3}",
@@ -202,5 +265,17 @@ pub fn urgent_event_experiment() -> std::io::Result<()> {
     }
 
     println!("\n✅ Simulação concluída! Dados salvos em 'urgent_event_log.csv'");
+
+    // Gera visualizações
+    println!("📊 Gerando visualizações...");
+    if let Err(e) = generate_all_plots(&snapshots, "exp3_urgent_event") {
+        eprintln!("⚠️  Erro ao gerar gráficos: {}", e);
+    } else {
+        println!("✅ Gráficos gerados:");
+        println!("   - exp3_urgent_event_priority_alert.png");
+        println!("   - exp3_urgent_event_energy.png");
+        println!("   - exp3_urgent_event_activity.png");
+    }
+
     Ok(())
 }

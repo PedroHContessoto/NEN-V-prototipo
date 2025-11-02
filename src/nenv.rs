@@ -96,7 +96,12 @@ impl NENV {
     /// * `current_time` - Passo de tempo atual da simulação
     pub fn decide_to_fire(&mut self, modulated_potential: f64, current_time: i64) {
         // Verifica período refratário
-        let is_in_refractory = (current_time - self.last_fire_time) < self.refractory_period;
+        // Neurônio nunca disparado (last_fire_time = -1) não está em refratário
+        let is_in_refractory = if self.last_fire_time < 0 {
+            false
+        } else {
+            (current_time - self.last_fire_time) < self.refractory_period
+        };
 
         // Reset do estado de disparo
         self.is_firing = false;
@@ -257,10 +262,13 @@ mod tests {
 
     #[test]
     fn test_excitatory_neuron_output() {
-        let mut neuron = NENV::excitatory(0, 2, 0.1);
+        let mut neuron = NENV::excitatory(0, 2, 1.5); // Limiar ajustado
 
-        // Configura pesos fortes para garantir disparo (normalizados para evitar problemas)
-        neuron.dendritoma.weights = vec![0.7071067811865475, 0.7071067811865475];
+        // Configura pesos não normalizados para garantir disparo
+        // potencial = 1.0*1.0 + 1.0*1.0 = 2.0
+        // modulado = 2.0 * 1.0 (energia_max) * 1.0 (priority) = 2.0 > 1.5
+        neuron.dendritoma.weights = vec![1.0, 1.0];
+        neuron.glia.priority = 1.0;
 
         let inputs = vec![1.0, 1.0];
         let potential = neuron.get_modulated_potential(&inputs);
@@ -272,10 +280,11 @@ mod tests {
 
     #[test]
     fn test_inhibitory_neuron_output() {
-        let mut neuron = NENV::inhibitory(0, 2, 0.1);
+        let mut neuron = NENV::inhibitory(0, 2, 1.5); // Limiar ajustado
 
-        // Configura pesos fortes para garantir disparo (normalizados)
-        neuron.dendritoma.weights = vec![0.7071067811865475, 0.7071067811865475];
+        // Configura pesos não normalizados para garantir disparo
+        neuron.dendritoma.weights = vec![1.0, 1.0];
+        neuron.glia.priority = 1.0;
 
         let inputs = vec![1.0, 1.0];
         let potential = neuron.get_modulated_potential(&inputs);
@@ -287,8 +296,9 @@ mod tests {
 
     #[test]
     fn test_refractory_period() {
-        let mut neuron = NENV::excitatory(0, 2, 0.1);
-        neuron.dendritoma.weights = vec![0.7071067811865475, 0.7071067811865475];
+        let mut neuron = NENV::excitatory(0, 2, 1.5); // Limiar ajustado
+        neuron.dendritoma.weights = vec![1.0, 1.0];
+        neuron.glia.priority = 1.0;
         neuron.set_refractory_period(5);
 
         let inputs = vec![1.0, 1.0];
@@ -355,5 +365,123 @@ mod tests {
 
         neuron.decide_to_fire(potential, 0);
         assert!(!neuron.is_firing);
+    }
+
+    // === Testes v0.2.0: Priority & Alert Level ===
+
+    #[test]
+    fn test_compute_novelty_zero_for_familiar() {
+        let mut neuron = NENV::excitatory(0, 3, 0.5);
+
+        // Define memória como um padrão específico
+        neuron.memory_trace = vec![0.5, 0.3, 0.2];
+
+        // Input idêntico à memória
+        let inputs = vec![0.5, 0.3, 0.2];
+        let novelty = neuron.compute_novelty(&inputs);
+
+        // Novidade deve ser zero (completamente familiar)
+        assert_relative_eq!(novelty, 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_compute_novelty_high_for_novel() {
+        let mut neuron = NENV::excitatory(0, 3, 0.5);
+
+        // Memória com zeros (nenhum input recente)
+        neuron.memory_trace = vec![0.0, 0.0, 0.0];
+
+        // Input forte e completamente novo
+        let inputs = vec![1.0, 1.0, 1.0];
+        let novelty = neuron.compute_novelty(&inputs);
+
+        // Novidade deve ser 1.0 (média de diferenças absolutas)
+        assert_relative_eq!(novelty, 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_compute_novelty_partial() {
+        let mut neuron = NENV::excitatory(0, 4, 0.5);
+
+        neuron.memory_trace = vec![0.5, 0.5, 0.5, 0.5];
+        let inputs = vec![1.0, 0.0, 1.0, 0.0];
+
+        let novelty = neuron.compute_novelty(&inputs);
+
+        // Diferenças: |1.0-0.5| + |0.0-0.5| + |1.0-0.5| + |0.0-0.5| = 2.0
+        // Média: 2.0 / 4 = 0.5
+        assert_relative_eq!(novelty, 0.5, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_update_priority_increases_with_novelty() {
+        let mut neuron = NENV::excitatory(0, 2, 0.5);
+
+        // Priority inicial deve ser 1.0
+        assert_eq!(neuron.glia.priority, 1.0);
+
+        // Atualiza com novelty=0.5 e sensitivity_factor=1.0
+        neuron.update_priority(0.5, 1.0);
+
+        // Priority = 1.0 + 0.5*1.0 = 1.5
+        assert_relative_eq!(neuron.glia.priority, 1.5, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_update_priority_sensitivity_factor() {
+        let mut neuron = NENV::excitatory(0, 2, 0.5);
+
+        // Sensitivity factor = 2.0 (mais sensível)
+        neuron.update_priority(0.5, 2.0);
+
+        // Priority = 1.0 + 0.5*2.0 = 2.0
+        assert_relative_eq!(neuron.glia.priority, 2.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_update_priority_clamps_at_max() {
+        let mut neuron = NENV::excitatory(0, 2, 0.5);
+
+        // Novelty muito alto com sensitivity alto
+        neuron.update_priority(10.0, 1.0);
+
+        // Priority deve ser limitado a 3.0
+        assert_eq!(neuron.glia.priority, 3.0);
+    }
+
+    #[test]
+    fn test_priority_modulates_potential() {
+        let mut neuron = NENV::excitatory(0, 2, 0.1);
+        neuron.dendritoma.weights = vec![0.7071067811865475, 0.7071067811865475];
+        neuron.glia.energy = 100.0; // Energia máxima
+        neuron.glia.priority = 2.0; // Priority dobrado
+
+        let inputs = vec![1.0, 1.0];
+        let potential = neuron.get_modulated_potential(&inputs);
+
+        // Sem priority: ~1.41
+        // Com priority=2.0: ~2.82
+        assert!(potential > 2.5);
+        assert!(potential < 3.0);
+    }
+
+    #[test]
+    fn test_priority_enables_firing() {
+        let mut neuron = NENV::excitatory(0, 2, 1.5); // Limiar alto
+        neuron.dendritoma.weights = vec![0.7071067811865475, 0.7071067811865475];
+        neuron.glia.priority = 1.0; // Priority normal
+
+        let inputs = vec![1.0, 1.0];
+
+        // Sem priority alto, não dispara
+        let potential = neuron.get_modulated_potential(&inputs);
+        neuron.decide_to_fire(potential, 0);
+        assert!(!neuron.is_firing);
+
+        // Com priority alto, dispara
+        neuron.glia.priority = 2.0;
+        let potential_boosted = neuron.get_modulated_potential(&inputs);
+        neuron.decide_to_fire(potential_boosted, 1);
+        assert!(neuron.is_firing);
     }
 }

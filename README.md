@@ -253,7 +253,24 @@ MIT License
 
 ## 🗂️ Histórico de Versões
 
-### v0.1.0 - Protótipo Base (branch: `main`)
+### v0.2.0 - Priority & Alert Level (branch: `feature/glia-priority-alert`) ✅ COMPLETO
+**Objetivo**: Ativar parâmetros `priority` e `alert_level` da Glia para atenção emergente
+
+Funcionalidades implementadas:
+- ✅ **Priority baseado em novidade**: Neurónios detectam padrões inesperados
+- ✅ **Alert_level global**: Modula recuperação de energia de toda a rede
+- ✅ **Experimento 2**: Detecção de novidade (padrão familiar vs. novo)
+- ✅ **Experimento 3**: Resposta a evento urgente
+- ✅ Integração no ciclo de simulação
+- ✅ Testes validados com sucesso
+
+**Comportamentos emergentes observados:**
+- Priority aumenta automaticamente para inputs novos (atenção seletiva)
+- Alert_level acelera recuperação energética (+100% com alert=1.0)
+- Decaimento exponencial retorna sistema ao baseline
+- Rede responde mais rápido após eventos urgentes
+
+### v0.1.0 - Protótipo Base (branch: `master`) ✅
 - ✅ Implementação completa do guia v2
 - ✅ Componentes: Glia, Dendritoma, NENV, Network
 - ✅ Neurónios excitatórios e inibitórios
@@ -264,6 +281,65 @@ MIT License
 
 ---
 
-**Status Atual**: ✅ Protótipo v2 funcional com experimento de habituação implementado
+**Branch Atual**: `feature/glia-priority-alert`
+**Status**: ✅ Priority & Alert Level implementados e validados
 
 **Última atualização**: 02 de novembro de 2025
+
+## 🆕 Novidades v0.2.0
+
+### Priority (Prioridade Neural)
+
+**Conceito**: Neurónios ajustam automaticamente sua sensibilidade baseado na novidade do input.
+
+```rust
+// Cálculo de novidade (diferença com memória)
+let novelty = neuron.compute_novelty(inputs);
+
+// Priority aumenta com novidade
+neuron.update_priority(novelty, sensitivity_factor);
+
+// Modula o potencial
+modulated = potential * energy_factor * priority
+```
+
+**Fórmula**: `priority = 1.0 + novelty * sensitivity_factor` (limitado a 3.0)
+
+**Aplicações**:
+- Detecção de anomalias
+- Atenção seletiva emergente
+- Resposta aumentada a padrões inesperados
+
+### Alert Level (Nível de Alerta Global)
+
+**Conceito**: Estado global da rede que acelera recuperação energética em situações urgentes.
+
+```rust
+// Ativa alerta máximo
+network.set_alert_level(1.0);
+
+// Recuperação acelerada
+recovery = base_recovery * (1.0 + alert_level)
+
+// Decai automaticamente
+alert_level *= (1.0 - decay_rate)
+```
+
+**Parâmetros**:
+- Range: [0.0, 1.0]
+- Decay rate: 0.05 (5% por passo)
+- Efeito: +100% recuperação com alert=1.0
+
+**Aplicações**:
+- Resposta rápida a eventos críticos
+- Coordenação global da rede
+- Simulação de estados de vigilância
+
+### Experimentos Disponíveis
+
+Execute com: `cargo run --release`
+
+**Experimento 3: Resposta a Evento Urgente** (atual)
+- Demonstra alert_level em ação
+- Estímulo forte → Evento urgente (t=50)
+- Observa recuperação acelerada

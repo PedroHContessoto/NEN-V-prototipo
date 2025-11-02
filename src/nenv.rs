@@ -135,6 +135,53 @@ impl NENV {
         }
     }
 
+    /// Calcula a novidade do padrão de entrada atual
+    ///
+    /// Novidade é medida como a diferença absoluta média entre o input atual
+    /// e a memória contextual (padrões recentes). Valores altos indicam
+    /// padrões inesperados ou não familiares.
+    ///
+    /// # Argumentos
+    /// * `inputs` - Vetor de sinais de entrada atual
+    ///
+    /// # Retorna
+    /// Valor de novidade [0.0, ∞), onde 0 = completamente familiar
+    pub fn compute_novelty(&self, inputs: &[f64]) -> f64 {
+        assert_eq!(
+            inputs.len(),
+            self.memory_trace.len(),
+            "Número de inputs deve ser igual ao tamanho da memória"
+        );
+
+        // Calcula diferença absoluta média entre input e memória
+        let total_diff: f64 = inputs
+            .iter()
+            .zip(self.memory_trace.iter())
+            .map(|(input, memory)| (input - memory).abs())
+            .sum();
+
+        // Normaliza pelo número de inputs para manter escala consistente
+        total_diff / inputs.len() as f64
+    }
+
+    /// Atualiza o priority da Glia baseado na novidade do input
+    ///
+    /// Priority aumenta com novidade, tornando o neurónio mais sensível
+    /// a padrões inesperados (mecanismo de atenção emergente).
+    ///
+    /// Fórmula: priority = 1.0 + novelty * sensitivity_factor
+    ///
+    /// # Argumentos
+    /// * `novelty` - Valor de novidade calculado
+    /// * `sensitivity_factor` - Multiplicador de sensibilidade (padrão: 1.0)
+    pub fn update_priority(&mut self, novelty: f64, sensitivity_factor: f64) {
+        // Priority base é 1.0, aumenta proporcionalmente à novidade
+        self.glia.priority = 1.0 + novelty * sensitivity_factor;
+
+        // Limita priority a um máximo razoável para evitar instabilidade
+        self.glia.priority = self.glia.priority.min(3.0);
+    }
+
     /// Processa um passo completo de atualização do neurónio
     ///
     /// Esta função encapsula o fluxo completo:

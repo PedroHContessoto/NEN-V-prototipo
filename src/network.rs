@@ -29,6 +29,14 @@ pub struct Network {
     /// Dimensões da grade (para topologia Grid2D)
     pub grid_width: usize,
     pub grid_height: usize,
+
+    /// Nível de alerta global da rede [0.0, 1.0]
+    /// 0.0 = estado normal, 1.0 = alerta máximo
+    /// Afeta a recuperação de energia de todos os neurónios
+    pub alert_level: f64,
+
+    /// Taxa de decaimento do alert_level (retorna gradualmente ao baseline)
+    alert_decay_rate: f64,
 }
 
 impl Network {
@@ -80,6 +88,8 @@ impl Network {
             current_time_step: 0,
             grid_width,
             grid_height,
+            alert_level: 0.0, // Estado normal inicial
+            alert_decay_rate: 0.05, // Decai 5% por passo
         }
     }
 
@@ -181,7 +191,10 @@ impl Network {
     pub fn update(&mut self, external_inputs: &[f64]) {
         self.current_time_step += 1;
 
-        // Fase 0: Coleta todas as saídas do passo anterior
+        // Fase 0: Atualiza alert_level (decaimento gradual)
+        self.update_alert_level();
+
+        // Coleta todas as saídas do passo anterior
         let all_neuron_outputs: Vec<f64> = self.neurons.iter().map(|n| n.output_signal).collect();
 
         // Cria vetores temporários para armazenar resultados da Fase 1-3
@@ -210,11 +223,21 @@ impl Network {
 
         // Fase 4: Aprendizado e atualização de estado
         for (neuron, inputs) in self.neurons.iter_mut().zip(gathered_inputs.iter()) {
+            // Calcula novidade ANTES de atualizar memória
+            let novelty = neuron.compute_novelty(inputs);
+
+            // Atualiza priority baseado na novidade (sensitivity_factor = 1.0 por padrão)
+            neuron.update_priority(novelty, 1.0);
+
+            // Aprendizado (se disparou)
             if neuron.is_firing {
                 neuron.dendritoma.apply_learning(inputs);
             }
 
+            // Atualização de estado metabólico
             neuron.glia.update_state(neuron.is_firing);
+
+            // Atualiza memória DEPOIS de calcular novelty
             neuron.update_memory(inputs);
         }
     }
@@ -263,6 +286,68 @@ impl Network {
             }
         }
         None
+    }
+
+    /// Define o nível de alerta global da rede
+    ///
+    /// O alert_level afeta a recuperação de energia de todos os neurónios.
+    /// Valores altos fazem a rede responder mais rapidamente a eventos.
+    ///
+    /// # Argumentos
+    /// * `level` - Nível de alerta [0.0, 1.0]
+    pub fn set_alert_level(&mut self, level: f64) {
+        self.alert_level = level.clamp(0.0, 1.0);
+
+        // Propaga alert_level para todos os neurónios
+        for neuron in &mut self.neurons {
+            neuron.glia.alert_level = self.alert_level;
+        }
+    }
+
+    /// Aumenta o alert_level baseado na atividade global da rede
+    ///
+    /// Chamado automaticamente quando detecta alta atividade ou novidade.
+    /// O alert_level decai gradualmente a cada passo de simulação.
+    ///
+    /// # Argumentos
+    /// * `boost` - Quantidade para aumentar o alert_level
+    pub fn boost_alert_level(&mut self, boost: f64) {
+        self.alert_level = (self.alert_level + boost).min(1.0);
+
+        // Propaga para todos os neurónios
+        for neuron in &mut self.neurons {
+            neuron.glia.alert_level = self.alert_level;
+        }
+    }
+
+    /// Atualiza o alert_level (decaimento gradual para baseline)
+    ///
+    /// Chamado automaticamente a cada passo de update()
+    fn update_alert_level(&mut self) {
+        // Decai gradualmente para zero (estado normal)
+        self.alert_level *= 1.0 - self.alert_decay_rate;
+
+        // Propaga para neurónios
+        for neuron in &mut self.neurons {
+            neuron.glia.alert_level = self.alert_level;
+        }
+    }
+
+    /// Calcula a novidade média da rede
+    ///
+    /// Útil para detectar eventos inesperados e ajustar alert_level
+    pub fn average_novelty(&self) -> f64 {
+        let total_novelty: f64 = self
+            .neurons
+            .iter()
+            .map(|n| {
+                // Calcula novelty comparando memory_trace (última entrada conhecida)
+                let memory_norm: f64 = n.memory_trace.iter().map(|&x| x.abs()).sum();
+                memory_norm / n.memory_trace.len() as f64
+            })
+            .sum();
+
+        total_novelty / self.neurons.len() as f64
     }
 }
 

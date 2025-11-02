@@ -53,27 +53,47 @@ impl Glia {
         }
     }
 
-    /// Modula o potencial integrado baseado na energia disponível
+    /// Modula o potencial integrado baseado na energia disponível e priority
     ///
-    /// Fórmula: potencial_modulado = potencial_integrado * (energia / MAX_ENERGY)
+    /// Fórmula v2: potencial_modulado = potencial_integrado * energy_factor * priority
+    ///
+    /// - energy_factor: [0.0, 1.0] - Reduz potencial quando energia está baixa
+    /// - priority: [1.0, 3.0] - Aumenta sensibilidade para inputs novos/importantes
+    ///
+    /// # Argumentos
+    /// * `integrated_potential` - Potencial calculado pelo Dendritoma
+    ///
+    /// # Retorna
+    /// Potencial modulado pronto para decisão de disparo
     pub fn modulate(&self, integrated_potential: f64) -> f64 {
         let energy_factor = (self.energy / self.max_energy).max(0.0);
-        integrated_potential * energy_factor
+
+        // Priority modula a sensibilidade do neurónio
+        // Priority > 1.0 aumenta o potencial (neurónio mais reativo)
+        // Priority = 1.0 não altera (comportamento padrão)
+        integrated_potential * energy_factor * self.priority
     }
 
     /// Atualiza o estado metabólico da Glia após um passo de simulação
     ///
     /// - Se o neurónio disparou: consome energia
-    /// - Se está em repouso: recupera energia
+    /// - Se está em repouso: recupera energia (afetada por alert_level)
     /// - Sempre: aplica custo de manutenção
+    ///
+    /// O alert_level global aumenta a taxa de recuperação quando a rede
+    /// está em estado de alerta, permitindo respostas mais rápidas.
     pub fn update_state(&mut self, did_fire: bool) {
         if did_fire {
             // Consome energia ao disparar
             self.energy -= self.energy_cost_fire;
         } else {
             // Recupera energia em repouso (taxa proporcional ao déficit)
-            let recovery_amount = self.energy_recovery_rate * (1.0 - self.energy / self.max_energy);
-            self.energy += recovery_amount;
+            let base_recovery = self.energy_recovery_rate * (1.0 - self.energy / self.max_energy);
+
+            // Alert_level aumenta a recuperação (1.0 = +100% de recuperação)
+            let alert_boost = base_recovery * self.alert_level;
+
+            self.energy += base_recovery + alert_boost;
         }
 
         // Custo de manutenção constante

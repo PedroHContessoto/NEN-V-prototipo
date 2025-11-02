@@ -1,15 +1,13 @@
-use nen_v_prototipo::{ConnectivityType, Network};
+use nen_v_prototipo::{experiments, ConnectivityType, Network};
 use std::fs::File;
 use std::io::Write;
 
 fn main() -> std::io::Result<()> {
-    println!("=== NEN-V Protótipo v2 ===");
-    println!("Experimento de Habituação\n");
+    println!("=== NEN-V Protótipo v0.2.0 ===");
+    println!("Experimento 3: Resposta a Evento Urgente\n");
 
-    // Executa experimento de habituação
-    run_habituation_experiment()?;
-
-    println!("\nSimulação concluída! Dados salvos em 'habituation_log.csv'");
+    // Executa experimento de alert_level
+    experiments::urgent_event_experiment()?;
 
     Ok(())
 }

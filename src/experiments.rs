@@ -279,3 +279,135 @@ pub fn urgent_event_experiment() -> std::io::Result<()> {
 
     Ok(())
 }
+
+/// Experimento 4: Integração Novelty-Alert (v0.3.0)
+///
+/// Demonstra o comportamento emergente da integração entre Priority e Alert Level:
+/// Novidade local → Alert global → Recuperação acelerada da rede
+///
+/// Protocolo:
+/// 1. Baseline (t=0-50): Padrão A repetido → familiarização completa
+/// 2. Evento Novo (t=50): Introduz padrão B completamente diferente
+/// 3. Observação (t=50-150): Monitora cascata de efeitos emergentes
+///
+/// Comportamento esperado (comportamento EMERGENTE):
+/// - t=50: Padrão B → Alta novelty local (neurônios do padrão B)
+/// - t=50-55: Alta avg_novelty → Alert_level ativado AUTOMATICAMENTE
+/// - t=55-70: Alert_level alto → Recuperação acelerada de TODA a rede
+/// - t=70-150: Familiarização com B → avg_novelty cai → alert_level decai
+pub fn novelty_alert_integration_experiment() -> std::io::Result<()> {
+    println!("=== Experimento 4: Integração Novelty-Alert (v0.3.0) ===\n");
+
+    const NUM_NEURONS: usize = 100;
+    const INITIAL_THRESHOLD: f64 = 0.2;
+    const MAX_TIME: i64 = 150;
+
+    let mut network = Network::new(
+        NUM_NEURONS,
+        ConnectivityType::Grid2D,
+        0.2,
+        INITIAL_THRESHOLD,
+    );
+
+    // Configuração da integração (ajustada para rede de 100 neurônios)
+    // Threshold baixo para capturar novidade em uma rede pequena
+    network.set_novelty_alert_params(0.04, 0.5);
+
+    println!("Configuração:");
+    println!("  - Neurónios: {}", NUM_NEURONS);
+    println!("  - Novelty threshold: 0.04 (ajustado para rede pequena)");
+    println!("  - Alert sensitivity: 0.5");
+    println!("  - t=0-50: Padrão A repetido (familiarização)");
+    println!("  - t=50: Introduz padrão B NOVO (trigger de novidade)");
+    println!("  - t=50-150: Observa cascata emergente\n");
+
+    const NEURON_A: usize = 33;
+    const NEURON_B: usize = 66;
+
+    let mut log_file = File::create("integration_experiment_log.csv")?;
+    writeln!(
+        log_file,
+        "time,neuron_a_priority,neuron_b_priority,avg_novelty,alert_level,avg_energy,total_firing"
+    )?;
+
+    let mut snapshots = Vec::new();
+
+    for t in 0..MAX_TIME {
+        let mut external_inputs = vec![0.0; NUM_NEURONS];
+
+        if t < 50 {
+            // Baseline: apenas padrão A
+            external_inputs[NEURON_A] = 2.0;
+        } else {
+            // Evento novo: padrão B (completamente diferente)
+            external_inputs[NEURON_B] = 2.0;
+        }
+
+        network.update(&external_inputs);
+
+        let neuron_a = &network.neurons[NEURON_A];
+        let neuron_b = &network.neurons[NEURON_B];
+
+        // Snapshot para neurônio B (o novo)
+        snapshots.push(SimulationSnapshot {
+            time: t,
+            target_firing: neuron_b.is_firing,
+            target_energy: neuron_b.glia.energy,
+            target_priority: neuron_b.glia.priority,
+            total_firing: network.num_firing(),
+            avg_energy: network.average_energy(),
+            alert_level: network.alert_level,
+        });
+
+        writeln!(
+            log_file,
+            "{},{:.3},{:.3},{:.3},{:.3},{:.2},{}",
+            t,
+            neuron_a.glia.priority,
+            neuron_b.glia.priority,
+            network.average_novelty(),
+            network.alert_level,
+            network.average_energy(),
+            network.num_firing()
+        )?;
+
+        if t % 15 == 0 || t == 50 || t == 51 {
+            println!(
+                "t={:3} | Priority A={:.2} B={:.2} | Novelty={:.3} | Alert={:.3} | Energy={:.1}",
+                t,
+                neuron_a.glia.priority,
+                neuron_b.glia.priority,
+                network.average_novelty(),
+                network.alert_level,
+                network.average_energy()
+            );
+        }
+
+        // Evento especial em t=50
+        if t == 50 {
+            println!("    🔥 PADRÃO NOVO INTRODUZIDO! Observando cascata emergente...");
+        }
+    }
+
+    println!("\n✅ Simulação concluída! Dados salvos em 'integration_experiment_log.csv'");
+
+    // Gera visualizações
+    println!("📊 Gerando visualizações...");
+    if let Err(e) = generate_all_plots(&snapshots, "exp4_integration") {
+        eprintln!("⚠️  Erro ao gerar gráficos: {}", e);
+    } else {
+        println!("✅ Gráficos gerados:");
+        println!("   - exp4_integration_priority_alert.png (KEY: mostra acoplamento)");
+        println!("   - exp4_integration_energy.png");
+        println!("   - exp4_integration_activity.png");
+    }
+
+    println!("\n📈 Análise Esperada:");
+    println!("   1. t<50: priority≈1.0, novelty≈0.0, alert≈0.0 (baseline)");
+    println!("   2. t=50: novelty dispara (padrão novo)");
+    println!("   3. t=51-55: alert_level ativado AUTOMATICAMENTE");
+    println!("   4. t=55-70: energia recupera mais rápido (efeito sistêmico)");
+    println!("   5. t>70: familiarização → novelty→0, alert→0 (nova baseline)");
+
+    Ok(())
+}

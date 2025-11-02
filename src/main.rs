@@ -3,11 +3,11 @@ use std::fs::File;
 use std::io::Write;
 
 fn main() -> std::io::Result<()> {
-    println!("=== NEN-V Protótipo v0.2.0 ===");
-    println!("Experimento 2: Detecção de Novidade\n");
+    println!("=== NEN-V Protótipo v0.3.0 ===");
+    println!("Experimento 4: Integração Novelty-Alert\n");
 
-    // Executa experimento de detecção de novidade
-    experiments::novelty_detection_experiment()?;
+    // Executa experimento de integração
+    experiments::novelty_alert_integration_experiment()?;
 
     Ok(())
 }

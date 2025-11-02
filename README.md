@@ -1,4 +1,4 @@
-# NEN-V Protótipo v2
+# NEN-V Protótipo v0.3.0
 
 **Neurónio-Entrada-Núcleo-Vasos**: Uma arquitetura de rede neural bioinspirada implementada em Rust.
 
@@ -252,6 +252,44 @@ MIT License
 - **Implementação**: Pedro Henrique Cavalhieri Contessoto
 
 ## 🗂️ Histórico de Versões
+
+### v0.3.0 - Integração Novelty-Alert (branch: `feature/novelty-alert-integration`) ✅ COMPLETO
+**Objetivo**: Criar comportamento emergente conectando Priority (local) com Alert Level (global)
+
+**Arquitetura da Integração**:
+```
+Input Novo → ↑ Novelty (neurônios) → ↑ Priority (local)
+                      ↓
+              ↑ avg_novelty (rede) → ↑ Alert Level (global AUTOMÁTICO)
+                      ↓
+           Toda rede → ↑ Recuperação de energia (efeito sistêmico)
+```
+
+**Funcionalidades implementadas**:
+- ✅ `current_avg_novelty`: Novidade média da rede (calculada a cada update)
+- ✅ `novelty_alert_threshold`: Threshold para ativar alert automaticamente (padrão: 0.04)
+- ✅ `alert_sensitivity`: Sensibilidade do boost (padrão: 0.5)
+- ✅ Boost automático em `Network::update()` (Fase 5)
+- ✅ `set_novelty_alert_params()`: Configuração dos parâmetros
+- ✅ **Experimento 4**: Validação da cascata emergente
+- ✅ 39 testes unitários passando
+- ✅ Visualizações mostrando acoplamento
+
+**Comportamento Emergente Observado** (Experimento 4):
+1. **t<50**: Baseline - priority≈1.0, novelty≈0.0, alert≈0.0
+2. **t=50**: Padrão novo → novelty=0.053 (↑ detectado)
+3. **t=51**: Alert ativado AUTOMATICAMENTE (0.060) 🔥
+4. **t=51-75**: Energia recupera mais rápido (34→59) devido ao alert
+5. **t>75**: Familiarização → novelty→0, alert→0 (nova baseline)
+
+**Insight Chave**:
+> "A rede não precisa de controle externo para entrar em estado de alerta.
+> A própria detecção de novidade ativa automaticamente mecanismos globais de resposta."
+
+**Aplicações**:
+- Detecção de anomalias com resposta adaptativa automática
+- Sistemas de vigilância que "acordam" com eventos inesperados
+- Redes que coordenam atenção local com prontidão global
 
 ### v0.2.0 - Priority & Alert Level (branch: `feature/glia-priority-alert`) ✅ COMPLETO
 **Objetivo**: Ativar parâmetros `priority` e `alert_level` da Glia para atenção emergente

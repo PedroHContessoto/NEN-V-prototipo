@@ -7,6 +7,7 @@
 /// - Network: orquestração da simulação
 
 pub mod dendritoma;
+pub mod experiments;
 pub mod glia;
 pub mod nenv;
 pub mod network;

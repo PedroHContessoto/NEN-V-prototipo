@@ -253,7 +253,18 @@ MIT License
 
 ## 🗂️ Histórico de Versões
 
-### v0.1.0 - Protótipo Base (branch: `main`)
+### v0.2.0 - Priority & Alert Level (branch: `feature/glia-priority-alert`) 🚧 EM DESENVOLVIMENTO
+**Objetivo**: Ativar parâmetros `priority` e `alert_level` da Glia
+
+Funcionalidades planejadas:
+- [ ] Implementar `priority` baseado em novidade (diferença com `memory_trace`)
+- [ ] Implementar `alert_level` como modulador global da rede
+- [ ] Criar experimento de detecção de anomalias
+- [ ] Criar experimento de resposta a eventos urgentes
+- [ ] Adicionar visualizações para priority/alert
+- [ ] Documentar comportamentos emergentes
+
+### v0.1.0 - Protótipo Base (branch: `master`) ✅
 - ✅ Implementação completa do guia v2
 - ✅ Componentes: Glia, Dendritoma, NENV, Network
 - ✅ Neurónios excitatórios e inibitórios
@@ -264,6 +275,7 @@ MIT License
 
 ---
 
-**Status Atual**: ✅ Protótipo v2 funcional com experimento de habituação implementado
+**Branch Atual**: `feature/glia-priority-alert`
+**Status**: 🚧 Preparando implementação de Priority & Alert Level
 
 **Última atualização**: 02 de novembro de 2025
